@@ -1,0 +1,20 @@
+{
+    "emitLegacyScripts": false,
+    "name": "trafficlight-dev",
+    "tree": {
+        "$className": "DataModel",
+        "ReplicatedStorage": {
+            "TrafficLightSystem": {
+                "$path": "src"
+            },
+            "Plugin": {
+                "$path": "plugin"
+            }
+        },
+        "ServerStorage": {
+            "Tests": {
+                "$path": "tests/server"
+            }
+        }
+    }
+}
