@@ -28,6 +28,11 @@ local PatternsToSections = {
 		G = true,
 		GT = true,
 	},
+	Blink = {
+		R = false,
+		G = false,
+		YB = true,
+	}
 }
 
 local SectionsToBlink = {}
@@ -77,7 +82,7 @@ local function SetIntersectionLight(lightModel: Model, enabled: boolean, current
 			for name, enabled in PatternsToSections[PhaseResult] do
 				local Child = Sections:FindFirstChild(name)
 				if Child and Child.Name == name then
-					SetSectionEnabled(Child, enabled)
+					SetSectionEnabled(Child, enabled, if Child.Name == "YB" then true else false)
 				end
 			end
 		else
