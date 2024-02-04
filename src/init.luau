@@ -3,15 +3,24 @@
 
 export type PhaseTypes = "Single" | "Arrow" | "SingleWithArrow"
 
+local Packages = game:GetService("ReplicatedStorage").Packages
+local Clock = require(Packages.Clock)
+
+local PhaseResults = {
+	A = "Arrow",
+	B = "SingleWithArrow",
+	C = "Blink",
+}
+
 local PatternsToSections = {
 	Single = {
 		R = false,
 		G = true,
+		GP = true,
 		GT = false,
 	},
 	Arrow = {
 		R = true,
-		G = false,
 		GT = true,
 	},
 	SingleWithArrow = {
@@ -21,49 +30,35 @@ local PatternsToSections = {
 	},
 }
 
-local YellowTime = 3
-local DefaultPhaseTime = 14
+local SectionsToBlink = {}
 
-local function SetSectionEnabled(section: any, enabled: boolean)
+local YellowTime = 3
+local DefaultPhaseTime = 5
+
+local function SetSectionEnabled(section: any, enabled: boolean, blink: boolean?)
+	if blink then
+		if enabled then
+			table.insert(SectionsToBlink, section)
+		else
+			table.remove(
+				SectionsToBlink, table.find(SectionsToBlink, section)
+			)
+		end
+	end
+
 	section.Transparency = if enabled then 0 else 0.95
 	section.Light.Enabled = enabled
 end
-
--- local function SetTrafficLightEnabled()
-
--- 		for _, section in sectionChildren do
--- 			if not section:IsA("Part") then
--- 				continue
--- 			end
-
--- 			if section.Name == "R" and instruction == "Arrow" then
--- 				SetSectionEnabled(section, true)
--- 			else
--- 				SetSectionEnabled(section, false)
--- 			end
-
--- 			if table.find(SingleSectionsYellow, section.Name) and table.find(SingleOnly, instruction) then
--- 				SetSectionEnabled(section, true)
--- 			end
-
--- 			if table.find(ArrowSectionsYellow, section.Name) and table.find(ArrowOnly, instruction) then
--- 				SetSectionEnabled(section, true)
--- 			end
-
-			
--- end
 
 local function GetPhaseResult(phaseList: string, currentPhase: number): PhaseTypes
 	if not phaseList:find(tostring(currentPhase)) then
 		currentPhase = 1
 	end
 
-	if phaseList:find(`{currentPhase}A`) then
-		return "Arrow"
-	end
-	
-	if phaseList:find(`{currentPhase}B`) then
-		return "SingleWithArrow"
+	for formatter, result in PhaseResults :: any do
+		if phaseList:find(`{currentPhase}{formatter}`) then
+			return result
+		end
 	end
 	
 	return "Single"
@@ -87,10 +82,6 @@ local function SetIntersectionLight(lightModel: Model, enabled: boolean, current
 			end
 		else
 			local SectionChildren = Sections:GetChildren()
-
-			if PatternsToSections[NextPhase][] == true then
-				return
-			end
 
 			local Red = Sections:FindFirstChild("R")
 			for _, light in SectionChildren do
@@ -164,6 +155,14 @@ local function RegisterIntersection(intersection: Folder, phaseTimes: {number}?)
 		end
 	end)
 end
+
+Clock(1, function()
+	for _, section in SectionsToBlink :: {any} do
+		local Enabled = section.Light.Enabled
+		section.Transparency = if Enabled then 0 else 0.95
+		section.Light.Enabled = not Enabled
+	end
+end)
 
 return {
 	RegisterIntersection = RegisterIntersection
