@@ -98,7 +98,7 @@ local function RegisterIntersection(intersection: Folder, phaseTimes: {number}?)
 					SetIntersectionLight(object :: Model, false, CurrentPhase, NextPhase)
 				end
 
-				task.wait(6)
+				task.wait(Defaults.YellowTime + Defaults.PhaseChangeDelay)
 			end
 
 			if CurrentPhase == #CachedPhases then
