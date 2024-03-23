@@ -11,8 +11,19 @@ local function SetIntersectionLight(lightModel: Model, enabled: boolean, current
 		local PhaseResult = Phases.GetPhaseResult(PhaseList, currentPhase)
 		lightModel:SetAttribute("NextInstruction", Phases.GetPhaseResult(PhaseList, Phases.GetNextPhaseNumber(PhaseList, currentPhase)))
 
-		if not enabled and inNextPhase and lightModel:GetAttribute("NextInstruction"):find(PhaseResult) then
-			return
+		if not enabled then
+			if inNextPhase and lightModel:GetAttribute("NextInstruction"):find(PhaseResult) then
+				return
+			end
+
+			if PhaseResult == "SingleWithArrow" and lightModel:GetAttribute("NextInstruction") == "Single" then
+				Phases.SetSectionEnabled(Sections:WaitForChild("GT"), false)
+				Phases.SetSectionEnabled(Sections:WaitForChild("YT"), true)
+				task.delay(Defaults.YellowTime, function()
+					Phases.SetSectionEnabled(Sections:WaitForChild("YT"), false)
+				end)
+				return
+			end
 		end
 
 		if enabled then
@@ -87,7 +98,7 @@ local function RegisterIntersection(intersection: Folder, phaseTimes: {number}?)
 					SetIntersectionLight(object :: Model, false, CurrentPhase, NextPhase)
 				end
 
-				task.wait(4.5)
+				task.wait(6)
 			end
 
 			if CurrentPhase == #CachedPhases then
