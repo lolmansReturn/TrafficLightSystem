@@ -11,6 +11,7 @@
                 "$path": "src"
             },
             "Plugin": {
+                "$ignoreUnknownInstances": true,
                 "$path": "plugin"
             }
         },

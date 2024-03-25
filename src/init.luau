@@ -1,7 +1,8 @@
 local Phases = require(script.Phases)
 local Defaults = require(script.Defaults)
 
-local YellowLightNames = {"YT", "Y"}
+local YellowLightNames = { "YT", "Y" }
+local CachedPhases = {}
 
 local function SetIntersectionLight(lightModel: Model, enabled: boolean, currentPhase: number, inNextPhase: boolean?)
 	local Sections = lightModel:FindFirstChild("Sections")
@@ -9,7 +10,10 @@ local function SetIntersectionLight(lightModel: Model, enabled: boolean, current
 
 	if Sections then
 		local PhaseResult = Phases.GetPhaseResult(PhaseList, currentPhase)
-		lightModel:SetAttribute("NextInstruction", Phases.GetPhaseResult(PhaseList, Phases.GetNextPhaseNumber(PhaseList, currentPhase)))
+		lightModel:SetAttribute(
+			"NextInstruction",
+			Phases.GetPhaseResult(PhaseList, Phases.GetNextPhaseNumber(PhaseList, currentPhase))
+		)
 
 		if not enabled then
 			if inNextPhase and lightModel:GetAttribute("NextInstruction"):find(PhaseResult) then
@@ -42,12 +46,41 @@ local function SetIntersectionLight(lightModel: Model, enabled: boolean, current
 	end
 end
 
-local function RegisterIntersection(intersection: Folder, phaseTimes: {number}?)
-	if not intersection:HasTag("Intersection") then
-		warn("Intersection must have tag 'Intersection'")
-		return
+local function ActivateIntersectionPhase(phase: number, intersectionName: string)
+	local PhaseData = CachedPhases[intersectionName][phase]
+
+	if PhaseData then
+		for _, object in PhaseData.Objects do
+			SetIntersectionLight(object :: Model, true, phase)
+		end
+
+		task.wait(PhaseData.PhaseTime)
+
+		for _, object in PhaseData.Objects do
+			local NextPhase = false
+			local ObjectTableNext = CachedPhases[intersectionName][phase + 1]
+
+			if not ObjectTableNext then
+				ObjectTableNext = CachedPhases[intersectionName][1]
+			end
+
+			if table.find(ObjectTableNext.Objects, object) then
+				NextPhase = true
+			end
+
+			SetIntersectionLight(object :: Model, false, phase, NextPhase)
+		end
+
+		task.wait(Defaults.YellowTime + Defaults.PhaseDelay)
 	end
-	local CachedPhases = {}
+end
+
+local function RegisterIntersection(intersection: Folder, phaseTimes: { number }?)
+	assert(intersection:HasTag("Intersection"), "Intersection must have tag 'Intersection'")
+	assert(not CachedPhases[intersection.Name], "Cannot register the same intersection namespace twice")
+
+	CachedPhases[intersection.Name] = {}
+	local CachedIntersectionPhase = CachedPhases[intersection.Name]
 
 	for _, lightModel in intersection:GetChildren() do
 		if lightModel:HasTag("IntersectionTrafficLight") then
@@ -57,15 +90,15 @@ local function RegisterIntersection(intersection: Folder, phaseTimes: {number}?)
 			for phaseNumber in string.gmatch(PhaseList, "%d+") do
 				local ActualNumber = tonumber(phaseNumber) :: number
 
-				if not CachedPhases[ActualNumber] then
-					CachedPhases[ActualNumber] = {
+				if not CachedIntersectionPhase[ActualNumber] then
+					CachedIntersectionPhase[ActualNumber] = {
 						PhaseTime = if phaseTimes then phaseTimes[ActualNumber] else Defaults.PhaseTime,
 						Objects = {},
 					}
 				end
 
 				Phases.SetSectionEnabled(RedSection, true)
-				table.insert(CachedPhases[ActualNumber].Objects, lightModel)
+				table.insert(CachedIntersectionPhase[ActualNumber].Objects, lightModel)
 				lightModel:SetAttribute("NextInstruction", Phases.GetPhaseResult(PhaseList, 1))
 			end
 		end
@@ -74,34 +107,8 @@ local function RegisterIntersection(intersection: Folder, phaseTimes: {number}?)
 	local CurrentPhase = 1
 	task.defer(function()
 		while true do
-			local PhaseData = CachedPhases[CurrentPhase]
-
-			if PhaseData then
-				for _, object in PhaseData.Objects do
-					SetIntersectionLight(object :: Model, true, CurrentPhase)
-				end
-
-				task.wait(PhaseData.PhaseTime)
-
-				for _, object in PhaseData.Objects do
-					local NextPhase = false
-					local ObjectTableNext = CachedPhases[CurrentPhase + 1]
-
-					if not ObjectTableNext then
-						ObjectTableNext = CachedPhases[1]
-					end
-					
-					if table.find(ObjectTableNext.Objects, object) then
-						NextPhase = true
-					end
-					
-					SetIntersectionLight(object :: Model, false, CurrentPhase, NextPhase)
-				end
-
-				task.wait(Defaults.YellowTime + Defaults.PhaseChangeDelay)
-			end
-
-			if CurrentPhase == #CachedPhases then
+			ActivateIntersectionPhase(CurrentPhase, intersection.Name)
+			if CurrentPhase == #CachedIntersectionPhase then
 				CurrentPhase = 1
 			else
 				CurrentPhase += 1
@@ -111,5 +118,5 @@ local function RegisterIntersection(intersection: Folder, phaseTimes: {number}?)
 end
 
 return {
-	RegisterIntersection = RegisterIntersection
+	RegisterIntersection = RegisterIntersection,
 }
